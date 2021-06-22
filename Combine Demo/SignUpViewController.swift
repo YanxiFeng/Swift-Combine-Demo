@@ -28,13 +28,14 @@ class SignUpViewController: UIViewController {
     //验证用户名
     var validateUsername: AnyPublisher<String?, Never> {
         return $username
-            .debounce(for: 0.5, scheduler: RunLoop.main)
-            .removeDuplicates()
+            .debounce(for: 0.5, scheduler: RunLoop.main) //比如：0.5秒内输入3个字符不用请求3次
+            .removeDuplicates() //删除相同的值，比如：删除末尾字符xyz又加上xyz
             .flatMap { username in
                 //Future是一个Publisher
                 return Future { [self] promise in
+                    //网络请求验证用户名是否有效
                     usernameAvailable(username) { available in
-                        promise(.success(available ? username : "nil"))
+                        promise(.success(available ? username : nil))
                     }
                 }
             }
@@ -45,6 +46,7 @@ class SignUpViewController: UIViewController {
       return Publishers.CombineLatest($password, $passwordAgain)
         .map { password, passwordAgain in
             print(password)
+            //guard拦截: 2次输入password相同且大于8位
             guard password == passwordAgain && password.count > 8 else { return nil }
             return password
         }
@@ -56,9 +58,8 @@ class SignUpViewController: UIViewController {
           // 合并检验密码和检验用户名发布者，均有合理值时发送
         return Publishers.CombineLatest(validateUsername, validatedPassowrd)
             .map { username, password in
-            print("validatedEMail: \(username ?? "not set"), validatedPassword: \(password ?? "not set")")
-            //guard 如何拦截?
-            guard username != nil, let a = username, let b = password else {
+            //guard拦截: username和password都有值，否则返回nil
+            guard let a = username, let b = password else {
                 return nil
             }
             return (a, b)
